@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, HttpException, HttpStatus, InternalServerErrorException, Logger, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Header, Headers, HttpCode, HttpException, HttpStatus, InternalServerErrorException, Logger, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiService } from 'src/api/api.service';
 import { CategoryService } from './category.service';
 import { CreateCategoryDtos } from './dtos/create-category.dto';
@@ -7,7 +7,11 @@ import { UpdateCategoryDtos } from './dtos/update-category.dto';
 import { QueryCategoryDto } from './dtos/query-category.dto';
 import { InfinityPaginationResultType } from 'src/utility/types/infinity-pagination-result.type';
 import { infinityPagination } from 'src/utility/infinity-pagination';
+import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'))
 @Controller({
   path: 'category',
   version: '1',
@@ -21,21 +25,22 @@ export class CategoryController {
 
   @Post(':id')
   @HttpCode(HttpStatus.CREATED)
-  async create(@Param('id') userId: number, @Body() createCategory: CreateCategoryDtos): Promise<Category> {
+  async create(@Headers('Authorization') authHeader: string, @Body() createCategory: CreateCategoryDtos): Promise<Category> {
+    const token = authHeader.split(' ')[0];
     try {
-      if (userId === undefined || createCategory === undefined) {
-        this.logger.error(`userId or createCategory is undefined`);
-        throw new BadRequestException(`userId or createCategory is undefined`);
+      if (token === undefined || createCategory === undefined) {
+        this.logger.error(`token or createCategory is undefined`);
+        throw new BadRequestException(`token or createCategory is undefined`);
       }
 
-      const user = await this.apiService.validateUser(userId);
+      const user = await this.apiService.validateUser(token);
       if (!user) {
-        this.logger.error(`User ${userId} is not found`);
+        this.logger.error(`User is not found`);
         throw new NotFoundException(`user not found`);
       }
 
       if (user.roles !== 'admin') {
-        this.logger.error(`User ${userId} is not admin`);
+        this.logger.error(`User is not admin`);
         throw new ConflictException(`user is not admin permission denied`);
       }
 
@@ -47,24 +52,24 @@ export class CategoryController {
     }
   }
 
-  @Patch(':id')
+  @Patch()
   @HttpCode(HttpStatus.ACCEPTED)
-  async update(@Param('id') id: number, @Body() adminId: number, @Body() updatedData: UpdateCategoryDtos): Promise<Category> {
+  async update(@Headers('Authorization') authHeader: string, @Body() id: number, @Body() updatedData: UpdateCategoryDtos): Promise<Category> {
+    const token = authHeader.split(' ')[0];
     try {
-
-      if (id === undefined || adminId === undefined || updatedData === undefined) {
-        this.logger.error(`Id or AdminId or updatedData is undefined`);
-        throw new BadRequestException(`Id or AdminId or updatedData is undefined`)
+      if (token === undefined || id === undefined || updatedData === undefined) {
+        this.logger.error(`Id or token or updatedData is undefined`);
+        throw new BadRequestException(`Id or token or updatedData is undefined`)
       }
 
-      const admin = await this.apiService.validateUser(adminId);
+      const admin = await this.apiService.validateUser(token);
       if (!admin) {
-        this.logger.error(`Admin ${adminId} is not found`);
+        this.logger.error(`Admin is not found`);
         throw new NotFoundException(`admin not found`);
       }
 
       if (admin.roles !== 'admin') {
-        this.logger.error(`Admin ${adminId} is not admin`);
+        this.logger.error(`Admin is not admin`);
         throw new ConflictException(`admin is not admin permission denied`);
       }
 
@@ -78,21 +83,22 @@ export class CategoryController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteCategory(@Param('id') id: number, @Body() adminId: number): Promise<void> {
+  async deleteCategory(@Param('id') id: number, @Headers('Authorization') authHeader: string): Promise<void> {
+    const token = authHeader.split(' ')[0];
     try {
-      if (id === undefined || adminId === undefined) {
-        this.logger.error(`id or adminId is undefined`);
-        throw new BadRequestException(`id or adminId is undefined`);
+      if (id === undefined || token === undefined) {
+        this.logger.error(`id or token is undefined`);
+        throw new BadRequestException(`id or token is undefined`);
       }
 
-      const admin = await this.apiService.validateUser(adminId);
+      const admin = await this.apiService.validateUser(token);
       if (!admin) {
-        this.logger.error(`admin ${adminId} not found`);
+        this.logger.error(`admin not found`);
         throw new NotFoundException(`admin not found`);
       }
 
       if (admin.roles !== 'admin') {
-        this.logger.error(`Admin ${adminId} is not admin`);
+        this.logger.error(`Admin is not admin`);
         throw new ConflictException(`admin is not admin permission denied`);
       }
 
